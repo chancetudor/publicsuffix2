@@ -1,14 +1,14 @@
 [package]
-name = "publicsuffix"
+name = "publicsuffix2"
 description = "Extract root domain and suffix from a domain name"
-version = "2.3.0"
+version = "0.1.0"
 license = "MIT/Apache-2.0"
-repository = "https://github.com/rushmorem/publicsuffix"
+repository = "https://github.com/chancetudor/publicsuffix2"
 documentation = "https://docs.rs/publicsuffix"
 readme = "README.md"
 keywords = ["tld", "psl", "no_std", "tldextract", "domain"]
-authors = ["rushmorem <rushmore@webenchanter.com>"]
-edition = "2018"
+authors = ["ctudor <chance@cmtudor.com>"]
+edition = "2024"
 
 [features]
 # Punycode is enabled by default to be feature parity with the `psl` crate

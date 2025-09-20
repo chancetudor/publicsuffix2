@@ -5,7 +5,7 @@
 
 extern crate alloc;
 
-mod error;
+mod errors;
 
 #[cfg(feature = "anycase")]
 use alloc::borrow::Cow;
@@ -22,7 +22,7 @@ use std::collections::HashMap as Map;
 #[cfg(feature = "anycase")]
 use unicase::UniCase;
 
-pub use error::Error;
+pub use errors::Error;
 pub use psl_types::{Domain, Info, List as Psl, Suffix, Type};
 
 /// The official URL of the list
