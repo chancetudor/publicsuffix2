@@ -1,5 +1,3 @@
-// tests/options_tests.rs
-
 use publicsuffix2::options::{CommentPolicy, LoadOpts, MatchOpts, Normalizer, SectionPolicy};
 
 #[test]
