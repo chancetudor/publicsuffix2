@@ -1,22 +1,36 @@
 use hashbrown::HashMap;
 
+/// PSL rule section classification.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Type {
+    /// Rules curated by ICANN.
     Icann,
+    /// Rules contributed by private orgs and service providers.
     Private,
 }
 
+/// Filter applied at match time to restrict which sections are eligible.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TypeFilter {
+    /// Allow rules from any section (ICANN and Private).
     Any,
+    /// Allow only ICANN rules.
     Icann,
+    /// Allow only Private rules.
     Private,
 }
 
+/// Marker placed on a trie node indicating how the label path acts as a rule.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Leaf {
+    /// This path is not a rule; traversal may continue to children.
     None,
+    /// Positive rule: this label path is a public suffix.
     Positive,
+    /// Exception rule (PSL “!”): cancels a broader rule one label deeper.
+    ///
+    /// Example: with `*.uk` (positive) and `!city.uk` (exception),
+    /// the host `foo.city.uk` yields TLD = "uk".
     Negative,
 }
 
@@ -26,15 +40,25 @@ impl Default for Leaf {
     }
 }
 
+/// Node in the reverse-label trie used to match PSL rules.
+///
+/// Children are keyed by label strings as they appear in the list
+/// (including "*" for wildcard entries). The trie is traversed from the
+/// rightmost label of an input host toward the left.
 #[derive(Default, Clone)]
 pub struct Node {
+    /// Whether this node represents a rule and of what kind.
     pub leaf: Leaf,
+    /// Optional section classification for this node’s rule.
     pub typ: Option<Type>,
+    /// Child labels reachable from this node.
     pub kids: HashMap<String, Node>,
 }
 
+/// Top-level container for the rule trie.
 #[derive(Default, Clone)]
 pub struct RuleSet {
+    /// Root of the reverse-label trie (has no label itself).
     pub(crate) root: Node,
 }
 // -------------------------------------
