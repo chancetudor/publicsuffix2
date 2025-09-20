@@ -4,38 +4,24 @@ description = "Extract root domain and suffix from a domain name"
 version = "0.1.0"
 license = "MIT/Apache-2.0"
 repository = "https://github.com/chancetudor/publicsuffix2"
-documentation = "https://docs.rs/publicsuffix"
+documentation = "https://docs.rs/publicsuffix2"
 readme = "README.md"
-keywords = ["tld", "psl", "no_std", "tldextract", "domain"]
+keywords = ["tld", "psl", "tldextract", "domain", "dns", "sld", "publicsuffix", "publicsuffix2"]
 authors = ["ctudor <chance@cmtudor.com>"]
 edition = "2024"
 
+
 [features]
-# Punycode is enabled by default to be feature parity with the `psl` crate
-# by default, making switching between the 2 work seemlessly out of the box
-default = ["punycode"]
-
-# Adds support for looking up domain names in any case
-anycase = ["unicase"]
-
-# Adds support for looking up domain names in ascii format (normalised punycode)
-# see `idna::domain_to_ascii`. Since `idna` doesn't support `no_std` environments
-# this feature disables `no_std`
-punycode = ["idna"]
-
-# Adds support for `std::error::Error`
+default = ["std"]
 std = []
+idna = ["dep:idna"]  # optional normalization
+serde = ["dep:serde","dep:serde_json"]  # optional for fixtures/tests only
 
 [dependencies]
-psl-types = "2.0.11"
-
-# Optional dependencies
-hashbrown = { version = "0.15.1", features = ["inline-more"], optional = true }
-idna = { version = "1.0", optional = true }
-unicase = { version = "2.6.0", default-features = false, optional = true }
+hashbrown = "0.14"
+idna = { version = "0.5", optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
 
 [dev-dependencies]
-rspec = "1.0.0"
-
-[package.metadata.docs.rs]
-all-features = true
+criterion = "0.5"
