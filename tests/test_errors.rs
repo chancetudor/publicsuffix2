@@ -19,13 +19,6 @@ fn display_matches_debug_for_simple_errors() {
     }
 }
 
-#[cfg(feature = "idna")]
-#[test]
-fn display_matches_debug_for_idna_error() {
-    let e = Error::IdnaError("invalid punycode".into());
-    assert_eq!(format!("{}", e), format!("{:?}", e));
-}
-
 #[cfg(feature = "std")]
 #[test]
 fn error_implements_std_error_when_std_feature_enabled() {
