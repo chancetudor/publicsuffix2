@@ -18,11 +18,11 @@ impl RuleSet {
         // sld_end = len(host) - len(tld) - 1 (position of dot left of tld)
         let sld_end = s.len().saturating_sub(tld.len()).saturating_sub(1);
         if sld_end == 0 {
-            // no label left of tld → no sll and sld == tld (registrable == host)
+            // no label left of tld → no sll and no sld
             return Some(Parts {
                 prefix: None,
                 sll: None,
-                sld: Some(s),
+                sld: None,
                 tld,
             });
         }
@@ -307,7 +307,7 @@ mod tests {
         let p_com = rs.split("com", m).expect("parts");
         assert_eq!(p_com.prefix, None);
         assert_eq!(p_com.sll, None);
-        assert_eq!(p_com.sld, Some("com"));
+        assert_eq!(p_com.sld, None);
         assert_eq!(p_com.tld, "com");
 
         // With no rules
@@ -315,7 +315,7 @@ mod tests {
         let p_local = rs2.split("localhost", m).expect("parts");
         assert_eq!(p_local.prefix, None);
         assert_eq!(p_local.sll, None);
-        assert_eq!(p_local.sld, Some("localhost"));
+        assert_eq!(p_local.sld, None);
         assert_eq!(p_local.tld, "localhost");
     }
 
@@ -341,7 +341,7 @@ mod tests {
         let p = rs.split("example.org", m).expect("parts");
         assert_eq!(p.prefix, None);
         assert_eq!(p.sll, None);
-        assert_eq!(p.sld, Some("example.org"));
+        assert_eq!(p.sld, None);
         assert_eq!(p.tld, "example.org");
     }
 
