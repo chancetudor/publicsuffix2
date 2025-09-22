@@ -46,7 +46,7 @@ impl List {
     /// filter, normalization). Returns `None` if:
     /// - input is empty/invalid, or
     /// - `strict` is true and no rule matches.
-    /// 
+    ///
     /// Without rules (and non-strict), the fallback treats the last label as
     /// the TLD, making the registrable domain the entire host.
     pub fn sld<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<Cow<'a, str>> {
