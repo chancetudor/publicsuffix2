@@ -2,14 +2,13 @@
 name = "publicsuffix2"
 description = "Extract root domain and suffix from a domain name"
 version = "0.1.0"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/chancetudor/publicsuffix2"
 documentation = "https://docs.rs/publicsuffix2"
 readme = "README.md"
 keywords = ["tld", "psl", "tldextract", "domain", "dns", "sld", "publicsuffix", "publicsuffix2"]
 authors = ["ctudor <chance@cmtudor.com>"]
-edition = "2024"
-
+edition = "2021"
 
 [features]
 default = ["std", "idna"]
