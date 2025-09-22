@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/chancetudor/publicsuffix2"
 documentation = "https://docs.rs/publicsuffix2"
 readme = "README.md"
-keywords = ["tld", "psl", "tldextract", "domain", "dns", "sld", "publicsuffix", "publicsuffix2"]
+keywords = ["publicsuffix", "domain", "tld", "psl", "tldextract"]
 authors = ["ctudor <chance@cmtudor.com>"]
 edition = "2021"
 
