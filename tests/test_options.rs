@@ -53,8 +53,11 @@ fn matchopts_default_values() {
     let m = MatchOpts::default();
     assert!(m.wildcard);
     assert!(!m.strict);
-    assert!(m.normalizer.is_none());
-    // We intentionally do not assert on m.types since its type is defined in rules module.
+    assert!(m.normalizer.is_some());
+    let n = m.normalizer.unwrap();
+    assert!(n.lowercase);
+    assert!(n.strip_trailing_dot);
+    assert_eq!(n.idna_ascii, cfg!(feature = "idna"));
 }
 
 #[test]

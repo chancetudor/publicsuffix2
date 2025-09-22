@@ -1,4 +1,4 @@
-use publicsuffix2::{List, MatchOpts, Error};
+use publicsuffix2::{Error, List, MatchOpts};
 
 fn sample_list() -> List {
     let psl = concat!(
@@ -17,8 +17,8 @@ fn tld_and_sld_basic_bar_uk() {
     let opts = MatchOpts::default();
 
     let host = "foo.bar.uk";
-    assert_eq!(list.tld(host, opts), Some("bar.uk"));
-    assert_eq!(list.sld(host, opts), Some("foo.bar.uk"));
+    assert_eq!(list.tld(host, opts), Some("bar.uk".into()));
+    assert_eq!(list.sld(host, opts), Some("foo.bar.uk".into()));
 }
 
 #[test]
@@ -27,8 +27,8 @@ fn tld_and_sld_wildcard_anything_uk() {
     let opts = MatchOpts::default();
 
     let host = "foo.qux.uk";
-    assert_eq!(list.tld(host, opts), Some("qux.uk"));
-    assert_eq!(list.sld(host, opts), Some("foo.qux.uk"));
+    assert_eq!(list.tld(host, opts), Some("qux.uk".into()));
+    assert_eq!(list.sld(host, opts), Some("foo.qux.uk".into()));
 }
 
 #[test]
@@ -37,8 +37,8 @@ fn tld_and_sld_exception_city_uk() {
     let opts = MatchOpts::default();
 
     let host = "foo.city.uk";
-    assert_eq!(list.tld(host, opts), Some("uk"));
-    assert_eq!(list.sld(host, opts), Some("city.uk"));
+    assert_eq!(list.tld(host, opts), Some("uk".into()));
+    assert_eq!(list.sld(host, opts), Some("city.uk".into()));
 }
 
 #[test]
@@ -47,7 +47,7 @@ fn sld_none_when_no_label_left_of_tld_due_to_wildcard() {
     let opts = MatchOpts::default();
 
     let host = "foo.uk";
-    assert_eq!(list.tld(host, opts), Some("foo.uk"));
+    assert_eq!(list.tld(host, opts), Some("foo.uk".into()));
     assert_eq!(list.sld(host, opts), None);
 }
 
@@ -57,8 +57,8 @@ fn tld_and_sld_com() {
     let opts = MatchOpts::default();
 
     let host = "a.b.example.com";
-    assert_eq!(list.tld(host, opts), Some("com"));
-    assert_eq!(list.sld(host, opts), Some("example.com"));
+    assert_eq!(list.tld(host, opts), Some("com".into()));
+    assert_eq!(list.sld(host, opts), Some("example.com".into()));
 }
 
 #[test]
@@ -67,8 +67,8 @@ fn tld_and_sld_private_blogspot() {
     let opts = MatchOpts::default();
 
     let host = "foo.blogspot.com";
-    assert_eq!(list.tld(host, opts), Some("blogspot.com"));
-    assert_eq!(list.sld(host, opts), Some("foo.blogspot.com"));
+    assert_eq!(list.tld(host, opts), Some("blogspot.com".into()));
+    assert_eq!(list.sld(host, opts), Some("foo.blogspot.com".into()));
 }
 
 #[test]
@@ -79,22 +79,22 @@ fn split_examples_match_docs() {
     // "foo.bar.uk" → TLD="bar.uk", SLD="foo.bar.uk", SLL="foo", Prefix=None
     let p = list.split("foo.bar.uk", opts).expect("parts");
     assert_eq!(p.tld, "bar.uk");
-    assert_eq!(p.sld, Some("foo.bar.uk"));
-    assert_eq!(p.sll, Some("foo"));
+    assert_eq!(p.sld, Some("foo.bar.uk".into()));
+    assert_eq!(p.sll, Some("foo".into()));
     assert_eq!(p.prefix, None);
 
     // "foo.city.uk" → TLD="uk", SLD="city.uk", SLL="city", Prefix=Some("foo")
     let p = list.split("foo.city.uk", opts).expect("parts");
     assert_eq!(p.tld, "uk");
-    assert_eq!(p.sld, Some("city.uk"));
-    assert_eq!(p.sll, Some("city"));
-    assert_eq!(p.prefix, Some("foo"));
+    assert_eq!(p.sld, Some("city.uk".into()));
+    assert_eq!(p.sll, Some("city".into()));
+    assert_eq!(p.prefix, Some("foo".into()));
 
     // wildcard case: "foo.qux.uk" → TLD="qux.uk", SLD="foo.qux.uk", SLL="foo", Prefix=None
     let p = list.split("foo.qux.uk", opts).expect("parts");
     assert_eq!(p.tld, "qux.uk");
-    assert_eq!(p.sld, Some("foo.qux.uk"));
-    assert_eq!(p.sll, Some("foo"));
+    assert_eq!(p.sld, Some("foo.qux.uk".into()));
+    assert_eq!(p.sll, Some("foo".into()));
     assert_eq!(p.prefix, None);
 }
 
@@ -121,6 +121,6 @@ fn cloning_list_is_usable() {
     let list2 = list.clone();
     let opts = MatchOpts::default();
 
-    assert_eq!(list.tld("foo.bar.uk", opts), Some("bar.uk"));
-    assert_eq!(list2.tld("foo.bar.uk", opts), Some("bar.uk"));
+    assert_eq!(list.tld("foo.bar.uk", opts), Some("bar.uk".into()));
+    assert_eq!(list2.tld("foo.bar.uk", opts), Some("bar.uk".into()));
 }

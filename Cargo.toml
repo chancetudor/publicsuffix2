@@ -12,7 +12,7 @@ edition = "2024"
 
 
 [features]
-default = ["std"]
+default = ["std", "idna"]
 std = []
 idna = ["dep:idna"]  # optional normalization
 serde = ["dep:serde","dep:serde_json"]  # optional for fixtures/tests only

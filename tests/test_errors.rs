@@ -6,7 +6,9 @@ fn display_matches_debug_for_simple_errors() {
         Error::EmptyList,
         Error::MissingSections,
         Error::NotUtf8,
-        Error::LabelTooLong { label: "too-long".into() },
+        Error::LabelTooLong {
+            label: "too-long".into(),
+        },
         Error::RuleDepthExceeded { depth: 42 },
         Error::InvalidRule {
             rule: "com..".into(),
@@ -48,8 +50,12 @@ fn warnings_are_cloneable_and_debuggable() {
     let ws = [
         Warning::DuplicateRule { rule: "foo".into() },
         Warning::ShadowedRule { rule: "bar".into() },
-        Warning::UnknownMarker { line: "?? marker".into() },
-        Warning::TrailingDotRule { rule: "example.com.".into() },
+        Warning::UnknownMarker {
+            line: "?? marker".into(),
+        },
+        Warning::TrailingDotRule {
+            rule: "example.com.".into(),
+        },
     ];
     for w in ws {
         let w2 = w.clone();

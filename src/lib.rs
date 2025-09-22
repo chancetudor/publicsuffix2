@@ -1,14 +1,15 @@
 pub mod errors;
 pub mod options;
 
-mod rules;
-mod loader;
 mod engine;
+mod loader;
+mod rules;
 
-pub use errors::{Error, Result, Warning};
-pub use options::{LoadOpts, SectionPolicy, CommentPolicy, MatchOpts, Normalizer};
-pub use rules::{Type, TypeFilter};
 pub use engine::Parts;
+pub use errors::{Error, Result, Warning};
+pub use options::{CommentPolicy, LoadOpts, MatchOpts, Normalizer, SectionPolicy};
+pub use rules::{Type, TypeFilter};
+use std::borrow::Cow;
 
 #[derive(Clone)]
 /// A compiled Public Suffix List (PSL) and matcher.
@@ -47,7 +48,7 @@ impl List {
     /// - `strict` is true and no rule matches.
     /// Without rules (and non-strict), the fallback treats the last label as
     /// the TLD, making the registrable domain the entire host.
-    pub fn sld<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<&'a str> {
+    pub fn sld<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<Cow<'a, str>> {
         self.rules.sld(host, opts)
     }
 
@@ -57,7 +58,7 @@ impl List {
     /// Returns `None` only when input is empty/invalid or `strict` is true and
     /// no rule matches. With no rules (and non-strict), the suffix is the last
     /// label of the host.
-    pub fn tld<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<&'a str> {
+    pub fn tld<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<Cow<'a, str>> {
         self.rules.tld(host, opts)
     }
 
@@ -72,7 +73,7 @@ impl List {
     /// Examples (default options):
     /// - "foo.bar.uk" → TLD="bar.uk", SLD="foo.bar.uk", SLL="foo", Prefix=None
     /// - "foo.city.uk" (exception) → TLD="uk", SLD="city.uk", SLL="city", Prefix=Some("foo")
-    pub fn split<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<Parts<'a>> {
+    pub fn split<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<engine::Parts<'a>> {
         self.rules.split(host, opts)
     }
 }
