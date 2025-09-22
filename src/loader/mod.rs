@@ -71,7 +71,7 @@ pub fn load(text: &str, opts: LoadOpts) -> Result<RuleSet> {
         // If IDNA is enabled and rule contains non-ASCII, also add an ASCII (A-label) duplicate.
         #[cfg(feature = "idna")]
         if rule.bytes().any(|b| b >= 0x80) {
-            if let Ok(ascii) = idna::Config::default().to_ascii(rule) {
+            if let Ok(ascii) = idna::domain_to_ascii(rule) {
                 if ascii.as_str() != rule {
                     insert(&mut rules, &ascii, typ, neg);
                 }

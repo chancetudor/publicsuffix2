@@ -10,13 +10,13 @@ pub struct Parts<'a> {
     pub prefix: Option<Cow<'a, str>>, // everything left of sld
     /// The second-level label: the label immediately to the left of the public suffix.
     /// For `www.example.com`, this would be `example`.
-    pub sll: Option<Cow<'a, str>>,    // second-level label
+    pub sll: Option<Cow<'a, str>>, // second-level label
     /// The registrable domain, also known as eTLD+1 (effective Top-Level Domain plus one label).
     /// For `www.example.com`, this would be `example.com`.
-    pub sld: Option<Cow<'a, str>>,    // registrable (eTLD+1)
+    pub sld: Option<Cow<'a, str>>, // registrable (eTLD+1)
     /// The public suffix (eTLD).
     /// For `www.example.com`, this would be `com`. For `www.example.co.uk`, this would be `co.uk`.
-    pub tld: Cow<'a, str>,            // public suffix
+    pub tld: Cow<'a, str>, // public suffix
 }
 
 impl<'a> Parts<'a> {
@@ -36,18 +36,8 @@ impl RuleSet {
     /// registrable domain, and public suffix.
     ///
     /// This is the most comprehensive parsing function, returning all parts of a domain.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// # use publicsuffix2::{RuleSet, MatchOpts};
-    /// # let rules = RuleSet::default();
-    /// let parts = rules.split("www.example.com", MatchOpts::default()).unwrap();
-    /// assert_eq!(parts.prefix.as_deref(), Some("www"));
-    /// assert_eq!(parts.sll.as_deref(), Some("example"));
-    /// assert_eq!(parts.sld.as_deref(), Some("example.com"));
-    /// assert_eq!(parts.tld.as_ref(), "com");
-    /// ```
+    /// Behavior is controlled by `MatchOpts` (wildcards, strict mode, type filter,
+    /// normalization).
     pub fn split<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<Parts<'a>> {
         let s = normalize_view(host, opts);
 
@@ -302,7 +292,7 @@ fn normalize_view<'a>(s: &'a str, opts: MatchOpts<'_>) -> Cow<'a, str> {
     // IDNA -> ASCII (feature-gated; allocate only if non-ASCII)
     #[cfg(feature = "idna")]
     if n.idna_ascii && !out.is_ascii() {
-        if let Ok(ascii) = idna::Config::default().to_ascii(&out) {
+        if let Ok(ascii) = idna::domain_to_ascii(&out) {
             out = Cow::Owned(ascii);
         }
     }

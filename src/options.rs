@@ -101,7 +101,7 @@ pub const RAW_NORMALIZER: Normalizer = Normalizer {
 };
 
 impl Normalizer {
-        /// A preset that mirrors python-publicsuffix2's behavior.
+    /// A preset that mirrors python-publicsuffix2's behavior.
     pub const fn ps2() -> Self {
         PS2_NORMALIZER
     }

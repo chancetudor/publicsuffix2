@@ -14,7 +14,7 @@ fn loadopts_is_copy_and_clone() {
     let a = LoadOpts::default();
     let b = a; // Copy
     let _ = a; // still usable if Copy
-    // basic field checks on the copied value
+               // basic field checks on the copied value
     assert!(matches!(b.sections, SectionPolicy::Auto));
     assert!(matches!(b.comments, CommentPolicy::Common));
 

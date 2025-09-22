@@ -4,8 +4,8 @@
 
 #![allow(non_snake_case)]
 use publicsuffix2::{
-    List,
     options::{MatchOpts, Normalizer},
+    List,
 };
 
 // Load the PSL used for tests
@@ -32,7 +32,6 @@ fn m_no_idna() -> MatchOpts<'static> {
 fn list() -> List {
     List::parse(PSL).expect("parse PSL")
 }
-
 
 macro_rules! assert_sld_tld {
     ($list:expr, $host:expr, $opts:expr, $want_sld:expr, $want_tld:expr) => {{
