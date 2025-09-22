@@ -3,8 +3,6 @@ use crate::{
     errors::{Error, Result, RuleSyntax},
     options::{CommentPolicy, LoadOpts, SectionPolicy},
 };
-#[cfg(feature = "idna")]
-use idna;
 
 // Loads a `RuleSet` from a string slice containing the Public Suffix List.
 ///

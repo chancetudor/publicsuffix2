@@ -69,14 +69,8 @@ pub enum CommentPolicy {
 /// mapping, pre-process the host in an owned buffer and pass that string
 /// to the matcher.
 /// - `lowercase`: Lowercase ASCII A–Z before matching.
-/// Typically requires an owned buffer. The library does not allocate
-/// to apply this; perform it yourself if needed.
 /// - `strip_trailing_dot`: Strip a single trailing dot (root label), if present.
-/// Zero-copy and safe to enable when you want "example.com." treated
-/// the same as "example.com".
 /// - `idna_ascii`: Convert Unicode labels to IDNA ASCII (A-label) form before matching.
-/// Requires an owned buffer. Do the conversion in the caller and pass
-/// the converted host to the matcher.
 pub struct Normalizer {
     /// Lowercase ASCII A–Z before matching.
     pub lowercase: bool,
@@ -140,15 +134,10 @@ impl Normalizer {
 /// string is interpreted during lookups. See `Default` for typical settings.
 /// The lifetime `'n` ties the borrowed `Normalizer` to this struct.
 ///
-/// - `wildcard`: Enable PSL wildcard rules (e.g., `*.uk`). When false, only exact-label
-/// rules are considered and wildcard matches are ignored.
-/// - `strict`: Require a rule-derived suffix. If true and no rule matches (or the
-/// ruleset is empty), return `None` instead of falling back to
-/// “last label is the TLD”.
+/// - `wildcard`: Enable PSL wildcard rules (e.g., `*.uk`). When false, only exact-label rules are considered and wildcard matches are ignored.
+/// - `strict`: Require a rule-derived suffix. If true and no rule matches (or the ruleset is empty), return `None` instead of falling back to “last label is the TLD”.
 /// - `types`: Which PSL sections are eligible for matching (ICANN, Private, or Any).
-/// - `normalizer`: Optional borrowed normalizer applied to the input view (zero-copy tweaks
-/// like stripping a trailing dot). For lowercasing or IDNA mapping, preprocess
-/// in an owned buffer before matching and pass that string here.
+/// - `normalizer`: Optional borrowed normalizer applied to the input view (zero-copy tweaks like stripping a trailing dot). For lowercasing or IDNA mapping, preprocess in an owned buffer before matching and pass that string here.
 pub struct MatchOpts<'n> {
     /// Enable PSL wildcard rules (e.g., `*.uk`).
     pub wildcard: bool,

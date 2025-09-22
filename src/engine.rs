@@ -71,7 +71,7 @@ impl RuleSet {
 
                 let idx = b[..sld_end].rfind('.');
                 let mut start = idx.map(|i| i + 1).unwrap_or(0);
-                if start == 0 && b.as_bytes().get(0) == Some(&b'.') {
+                if start == 0 && b.as_bytes().first() == Some(&b'.') {
                     start = 1;
                 }
 
@@ -118,7 +118,7 @@ impl RuleSet {
 
                 let idx = o[..sld_end].rfind('.');
                 let mut start = idx.map(|i| i + 1).unwrap_or(0);
-                if start == 0 && o.as_bytes().get(0) == Some(&b'.') {
+                if start == 0 && o.as_bytes().first() == Some(&b'.') {
                     start = 1;
                 }
 
@@ -261,12 +261,12 @@ fn rfind_dot(s: &str, end: isize) -> isize {
 }
 
 fn accept_type(n: &Node, filt: TypeFilter) -> bool {
-    match (filt, n.typ) {
-        (TypeFilter::Any, _) => true,
-        (TypeFilter::Icann, Some(crate::rules::Type::Icann)) => true,
-        (TypeFilter::Private, Some(crate::rules::Type::Private)) => true,
-        _ => false,
-    }
+    matches!(
+        (filt, n.typ),
+        (TypeFilter::Any, _)
+            | (TypeFilter::Icann, Some(crate::rules::Type::Icann))
+            | (TypeFilter::Private, Some(crate::rules::Type::Private))
+    )
 }
 
 fn normalize_view<'a>(s: &'a str, opts: MatchOpts<'_>) -> Cow<'a, str> {
@@ -275,7 +275,7 @@ fn normalize_view<'a>(s: &'a str, opts: MatchOpts<'_>) -> Cow<'a, str> {
     };
 
     // Drop a single leading dot, then handle trailing dot.
-    let base = if s.starts_with('.') { &s[1..] } else { s };
+    let base = s.strip_prefix('.').unwrap_or(s);
     let mut out: Cow<'a, str> = if n.strip_trailing_dot && base.ends_with('.') {
         Cow::Owned(base[..base.len() - 1].to_string())
     } else {
@@ -283,10 +283,8 @@ fn normalize_view<'a>(s: &'a str, opts: MatchOpts<'_>) -> Cow<'a, str> {
     };
 
     // Lowercase (allocate only if needed).
-    if n.lowercase {
-        if out.chars().any(|c| c.is_ascii_uppercase()) {
-            out = Cow::Owned(out.to_lowercase());
-        }
+    if n.lowercase && out.chars().any(|c| c.is_ascii_uppercase()) {
+        out = Cow::Owned(out.to_lowercase());
     }
 
     // IDNA -> ASCII (feature-gated; allocate only if non-ASCII)
@@ -312,8 +310,10 @@ mod tests {
 
     fn rs_com_only() -> RuleSet {
         let mut rs = RuleSet::default();
-        let mut com = Node::default();
-        com.leaf = Leaf::Positive;
+        let com = Node {
+            leaf: Leaf::Positive,
+            ..Default::default()
+        };
         rs.root.kids.insert("com".into(), com);
         rs
     }
@@ -322,19 +322,25 @@ mod tests {
         let mut rs = RuleSet::default();
 
         // com => positive rule
-        let mut com = Node::default();
-        com.leaf = Leaf::Positive;
+        let com = Node {
+            leaf: Leaf::Positive,
+            ..Default::default()
+        };
         rs.root.kids.insert("com".into(), com);
 
         // uk => wildcard positive (*.uk) and exception (!city.uk)
         let mut uk = Node::default();
 
-        let mut star = Node::default();
-        star.leaf = Leaf::Positive;
+        let star = Node {
+            leaf: Leaf::Positive,
+            ..Default::default()
+        };
         uk.kids.insert("*".into(), star);
 
-        let mut city = Node::default();
-        city.leaf = Leaf::Negative;
+        let city = Node {
+            leaf: Leaf::Negative,
+            ..Default::default()
+        };
         uk.kids.insert("city".into(), city);
 
         rs.root.kids.insert("uk".into(), uk);

@@ -21,9 +21,10 @@ pub enum TypeFilter {
 }
 
 /// Marker placed on a trie node indicating how the label path acts as a rule.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Leaf {
     /// This path is not a rule; traversal may continue to children.
+    #[default]
     None,
     /// Positive rule: this label path is a public suffix.
     Positive,
@@ -32,12 +33,6 @@ pub enum Leaf {
     /// Example: with `*.uk` (positive) and `!city.uk` (exception),
     /// the host `foo.city.uk` yields TLD = "uk".
     Negative,
-}
-
-impl Default for Leaf {
-    fn default() -> Self {
-        Leaf::None
-    }
 }
 
 /// Node in the reverse-label trie used to match PSL rules.
@@ -121,8 +116,10 @@ mod tests {
     #[test]
     fn node_clone_is_deep_for_kids_map() {
         let mut n = Node::default();
-        let mut sub = Node::default();
-        sub.leaf = Leaf::Negative;
+        let sub = Node {
+            leaf: Leaf::Negative,
+            ..Default::default()
+        };
         n.kids.insert("net".into(), sub);
 
         let cloned = n.clone();

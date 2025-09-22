@@ -32,7 +32,7 @@ fn error_implements_std_error_when_std_feature_enabled() {
 #[cfg(feature = "std")]
 #[test]
 fn io_variant_display_has_stable_prefix() {
-    let io_err = std::io::Error::new(std::io::ErrorKind::Other, "oops");
+    let io_err = std::io::Error::other("oops");
     let e = Error::Io(io_err);
     let s = format!("{}", e);
     assert!(s.starts_with("Io("), "unexpected Display: {s}");
