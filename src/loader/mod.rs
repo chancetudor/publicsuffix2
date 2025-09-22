@@ -6,6 +6,19 @@ use crate::{
 #[cfg(feature = "idna")]
 use idna;
 
+// Loads a `RuleSet` from a string slice containing the Public Suffix List.
+///
+/// This function parses the text line by line, handling comments, section markers,
+/// and individual rules. It supports various loading options specified via the
+/// `LoadOpts` struct.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - The input text is not valid UTF-8.
+/// - The list is empty or contains no valid rules.
+/// - `LoadOpts::strict_rules` is enabled and an invalid rule is found.
+/// - `LoadOpts::sections` is set to `Require` and section markers are missing.
 pub fn load(text: &str, opts: LoadOpts) -> Result<RuleSet> {
     if !text.is_char_boundary(text.len()) {
         return Err(Error::NotUtf8);

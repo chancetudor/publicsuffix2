@@ -10,10 +10,13 @@
 /// - `collect_warnings`: If true, collect non-fatal parser warnings (e.g., duplicated rules).
 pub struct LoadOpts {
     /// How to handle PSL section markers (ICANN/PRIVATE) during parsing.
-    pub sections: SectionPolicy, // Auto | Ignore | Require
-    pub comments: CommentPolicy, // Common | OfficialOnly
-    pub strict_rules: bool,      // fail on malformed rules
-    pub collect_warnings: bool,  // optional non-fatal notes
+    pub sections: SectionPolicy,
+    /// Which kinds of comment lines to accept while parsing.
+    pub comments: CommentPolicy,
+    /// If true, reject malformed rules with an error instead of skipping them.
+    pub strict_rules: bool,
+    /// If true, collect non-fatal parser warnings (e.g., duplicated rules).
+    pub collect_warnings: bool,
 }
 impl Default for LoadOpts {
     /// Defaults suitable for most applications:
@@ -39,8 +42,11 @@ impl Default for LoadOpts {
 /// - `Ignore`: Ignore section markers; treat all rules as unclassified.
 /// - `Require`: Require well-formed section markers; error if missing or malformed.
 pub enum SectionPolicy {
+    /// Honor section markers when present; tolerate files without markers.
     Auto,
+    /// Ignore section markers; treat all rules as unclassified.
     Ignore,
+    /// Require well-formed section markers; error if missing or malformed.
     Require,
 }
 #[derive(Clone, Copy)]
@@ -49,7 +55,9 @@ pub enum SectionPolicy {
 /// - `Common`: Accept both the official `// ...` and commonly-seen `# ...` comments.
 /// - `OfficialOnly`: Accept only the official PSL `// ...` comments.
 pub enum CommentPolicy {
+    /// Accept both the official `// ...` and commonly-seen `# ...` or `; ...` comments.
     Common,
+    /// Accept only the official PSL `// ...` comments.
     OfficialOnly,
 }
 
@@ -70,8 +78,11 @@ pub enum CommentPolicy {
 /// Requires an owned buffer. Do the conversion in the caller and pass
 /// the converted host to the matcher.
 pub struct Normalizer {
+    /// Lowercase ASCII A–Z before matching.
     pub lowercase: bool,
+    /// Strip a single trailing dot (root label), if present.
     pub strip_trailing_dot: bool,
+    /// Convert Unicode labels to IDNA ASCII (A-label) form before matching.
     pub idna_ascii: bool,
 }
 
@@ -90,25 +101,30 @@ pub const RAW_NORMALIZER: Normalizer = Normalizer {
 };
 
 impl Normalizer {
+        /// A preset that mirrors python-publicsuffix2's behavior.
     pub const fn ps2() -> Self {
         PS2_NORMALIZER
     }
+    /// A preset that disables all normalization.
     pub const fn raw() -> Self {
         RAW_NORMALIZER
     }
 
+    /// A preset that only enables lowercasing.
     pub const fn lowercase_only() -> Self {
         Normalizer {
             lowercase: true,
             ..RAW_NORMALIZER
         }
     }
+    /// A preset that only enables stripping the trailing dot.
     pub const fn strip_dot_only() -> Self {
         Normalizer {
             strip_trailing_dot: true,
             ..RAW_NORMALIZER
         }
     }
+    /// A preset that only enables IDNA ASCII conversion.
     pub const fn idna_only() -> Self {
         Normalizer {
             idna_ascii: true,
@@ -134,9 +150,13 @@ impl Normalizer {
 /// like stripping a trailing dot). For lowercasing or IDNA mapping, preprocess
 /// in an owned buffer before matching and pass that string here.
 pub struct MatchOpts<'n> {
+    /// Enable PSL wildcard rules (e.g., `*.uk`).
     pub wildcard: bool,
+    /// Require a rule-derived suffix.
     pub strict: bool,
+    /// Which PSL sections are eligible for matching (ICANN, Private, or Any).
     pub types: super::rules::TypeFilter,
+    /// Optional borrowed normalizer applied to the input view.
     pub normalizer: Option<&'n Normalizer>,
 }
 impl Default for MatchOpts<'_> {

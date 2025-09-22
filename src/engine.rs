@@ -3,14 +3,24 @@ use crate::rules::{Leaf, Node, RuleSet, TypeFilter};
 use std::borrow::Cow;
 
 #[derive(Debug, PartialEq, Eq)]
+/// Represents the constituent parts of a domain name, separated according to the Public Suffix List rules.
 pub struct Parts<'a> {
+    /// The part of the host that is not part of the registrable domain, if any.
+    /// For `www.example.com`, this would be `www`.
     pub prefix: Option<Cow<'a, str>>, // everything left of sld
+    /// The second-level label: the label immediately to the left of the public suffix.
+    /// For `www.example.com`, this would be `example`.
     pub sll: Option<Cow<'a, str>>,    // second-level label
+    /// The registrable domain, also known as eTLD+1 (effective Top-Level Domain plus one label).
+    /// For `www.example.com`, this would be `example.com`.
     pub sld: Option<Cow<'a, str>>,    // registrable (eTLD+1)
+    /// The public suffix (eTLD).
+    /// For `www.example.com`, this would be `com`. For `www.example.co.uk`, this would be `co.uk`.
     pub tld: Cow<'a, str>,            // public suffix
 }
 
 impl<'a> Parts<'a> {
+    /// Converts a `Parts<'a>` into a `Parts<'static>` by cloning the internal data.
     pub fn into_owned(self) -> Parts<'static> {
         Parts {
             prefix: self.prefix.map(|v| Cow::Owned(v.into_owned())),
@@ -22,7 +32,22 @@ impl<'a> Parts<'a> {
 }
 
 impl RuleSet {
-    /// Core: PS2-style split into prefix/sll/sld/tld.
+    /// Splits a domain name into its constituent parts: prefix, second-level label,
+    /// registrable domain, and public suffix.
+    ///
+    /// This is the most comprehensive parsing function, returning all parts of a domain.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use publicsuffix2::{RuleSet, MatchOpts};
+    /// # let rules = RuleSet::default();
+    /// let parts = rules.split("www.example.com", MatchOpts::default()).unwrap();
+    /// assert_eq!(parts.prefix.as_deref(), Some("www"));
+    /// assert_eq!(parts.sll.as_deref(), Some("example"));
+    /// assert_eq!(parts.sld.as_deref(), Some("example.com"));
+    /// assert_eq!(parts.tld.as_ref(), "com");
+    /// ```
     pub fn split<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<Parts<'a>> {
         let s = normalize_view(host, opts);
 
@@ -130,12 +155,23 @@ impl RuleSet {
         }
     }
 
-    /// Core: PS2-style registrable domain (eTLD+1).
+    /// Extracts the registrable domain (eTLD+1) from a host name.
+    ///
+    /// The registrable domain is the public suffix plus one preceding label.
+    /// For example, for `www.example.com`, the registrable domain is `example.com`.
+    ///
+    /// This is a convenience method that calls `split` and returns only the `sld` part.
     pub fn sld<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<Cow<'a, str>> {
         self.split(host, opts).and_then(|p| p.sld)
     }
 
-    /// Core: PS2-style public suffix.
+    /// Extracts the public suffix (eTLD) from a host name.
+    ///
+    /// The public suffix is the part of the domain name that is present in the Public Suffix List.
+    /// For example, for `www.example.co.uk`, the public suffix is `co.uk`.
+    ///
+    /// This is an optimized method that directly finds the public suffix without calculating
+    /// the other parts of the domain. If you need other parts, use `split`.
     pub fn tld<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<Cow<'a, str>> {
         let s = normalize_view(host, opts); // Cow<'a, str>
 
