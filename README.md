@@ -1,58 +1,126 @@
-# PublicSuffix
+# PublicSuffix2
 
-A native Rust library for Mozilla's Public Suffix List
+[![crates.io](https://img.shields.io/crates/v/publicsuffix2.svg)](https://crates.io/crates/publicsuffix2)
+[![docs.rs](https://docs.rs/publicsuffix2/badge.svg)](https://docs.rs/publicsuffix2)
 
-[![CI](https://github.com/rushmorem/publicsuffix/actions/workflows/ci.yml/badge.svg)](https://github.com/rushmorem/publicsuffix/actions/workflows/ci.yml)
-[![Latest Version](https://img.shields.io/crates/v/publicsuffix.svg)](https://crates.io/crates/publicsuffix)
-[![Crates.io downloads](https://img.shields.io/crates/d/publicsuffix)](https://crates.io/crates/publicsuffix)
-[![Docs](https://docs.rs/publicsuffix/badge.svg)](https://docs.rs/publicsuffix)
-[![Minimum supported Rust version](https://img.shields.io/badge/rustc-1.56.1+-yellow.svg)](https://www.rust-lang.org)
-![Maintenance](https://img.shields.io/badge/maintenance-actively--developed-brightgreen.svg)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+A native Rust library for parsing and using Mozilla's [Public Suffix List](https://publicsuffix.org/).
 
-This library uses Mozilla's [Public Suffix List](https://publicsuffix.org) to reliably determine the suffix of a domain name. This crate provides a dynamic list that can be updated at runtime. If you need a faster, though static list, please use the [psl](https://crates.io/crates/psl) crate instead.
+This library is a fork of [rushmorem/publicsuffix](https://github.com/rushmorem/publicsuffix) and aims to reach feature parity with the popular Python library [python-publicsuffix2](https://github.com/aboutcode-org/python-publicsuffix2)
 
-*NB*: v1 of this crate contained logic to validate domain names and email addresses. Since v2, this functionality was moved to the [addr](https://crates.io/crates/addr) crate. This crate also no longer downloads the list for you.
+The Public Suffix List is a collection of all TLDs (Top-Level Domains) and other domains under which Internet users can directly register names. This library allows you to determine the "public suffix" part of a domain name.
 
-## Setting Up
+## Features
 
-Add this crate to your `Cargo.toml`:
+*   **Find the Public Suffix (TLD/eTLD):** Extract the effective Top-Level Domain from any hostname.
+*   **Find the Second-Level Domain (SLD/eTLD + 1):** Extract the main, registrable part of a domain.
+*   **Configurable Normalization:** Control over lowercasing, handling of trailing dots, and IDNA (Punycode) conversion.
+*   **ICANN and Private Rules:** Filter matches to include only ICANN-managed TLDs or also include privately-managed domains (e.g., `github.io`).
+*   **Wildcard and Exception Rule Support:** Correctly handles complex rules like `*.ck` and `!www.ck`.
+*   **IDN and Punycode:** Works seamlessly with both Unicode (e.g., `食狮.中国`) and Punycode (`xn--fiqs8s.xn--fiq228c`) domain names.
+*   **High Performance:** Uses a trie data structure for fast lookups.
+
+## Installation
+
+Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-publicsuffix = "2"
+publicsuffix2 = "0.1"
 ```
 
-## Examples
+## Usage
+
+First, you need a copy of the Public Suffix List. You can download it from the [official site](https://publicsuffix.org/list/public_suffix_list.dat).
+
+### Basic Example
 
 ```rust
-use publicsuffix::{Psl, List};
+use publicsuffix2::{List, options::MatchOpts};
 
-// the official list can be found at
-// https://publicsuffix.org/list/public_suffix_list.dat
-let list: List = "<-- your public suffix list here -->".parse()?;
+// Load the PSL data into the library.
+// It's recommended to do this once and reuse the `List` object.
+const PSL: &str = include_str!("path/to/your/public_suffix_list.dat");
 
-let suffix = list.suffix(b"www.example.com")?;
-assert_eq!(suffix, "com");
-assert_eq!(suffix.typ(), Some(Type::Icann));
+fn main() {
+    let list = List::parse(PSL).expect("Failed to parse PSL");
 
-let domain = list.domain(b"www.example.com")?;
-assert_eq!(domain, "example.com");
-assert_eq!(domain.suffix(), "com");
+    let domain = "www.example.co.uk";
 
-let domain = list.domain("www.食狮.中国".as_bytes())?;
-assert_eq!(domain, "食狮.中国");
-assert_eq!(domain.suffix(), "中国");
+    // Get the public suffix, also known as the TLD or eTLD.
+    let tld = list.tld(domain, MatchOpts::default());
+    assert_eq!(tld.as_deref(), Some("co.uk"));
 
-let domain = list.domain(b"www.xn--85x722f.xn--55qx5d.cn")?;
-assert_eq!(domain, "xn--85x722f.xn--55qx5d.cn");
-assert_eq!(domain.suffix(), "xn--55qx5d.cn");
+    // Get the second-level domain (the registrable part).
+    let sld = list.sld(domain, MatchOpts::default());
+    assert_eq!(sld.as_deref(), Some("example.co.uk"));
 
-let domain = list.domain(b"a.b.example.uk.com")?;
-assert_eq!(domain, "example.uk.com");
-assert_eq!(domain.suffix(), "uk.com");
-
-let domain = list.domain(b"_tcp.example.com.")?;
-assert_eq!(domain, "example.com.");
-assert_eq!(domain.suffix(), "com.");
+    // `tld` and `sld` also work on hostnames that are already a public suffix.
+    let domain2 = "co.uk";
+    let tld2 = list.tld(domain2, MatchOpts::default());
+    assert_eq!(tld2.as_deref(), Some("co.uk"));
+    let sld2 = list.sld(domain2, MatchOpts::default());
+    assert_eq!(sld2.as_deref(), Some("co.uk"));
+}
 ```
+
+### Advanced Options
+
+You can customize matching behavior using `MatchOpts` and `Normalizer`.
+
+```rust
+use publicsuffix2::{List, options::{MatchOpts, Normalizer, TypeFilter}};
+
+const PSL: &str = include_str!("path/to/your/public_suffix_list.dat");
+
+fn main() {
+    let list = List::parse(PSL).expect("Failed to parse PSL");
+
+    // --- Example 1: Handling trailing dots ---
+    let norm_strip_dot = Normalizer {
+        strip_trailing_dot: true,
+        ..Default::default()
+    };
+    let opts_strip_dot = MatchOpts {
+        normalizer: Some(&norm_strip_dot),
+        ..Default::default()
+    };
+    let sld1 = list.sld("foo.com.", opts_strip_dot);
+    assert_eq!(sld1.as_deref(), Some("foo.com"));
+
+
+    // --- Example 2: Filtering for ICANN rules only ---
+    // By default, private domains like `blogspot.com` are treated as TLDs.
+    let sld_default = list.sld("my-blog.blogspot.com", MatchOpts::default());
+    assert_eq!(sld_default.as_deref(), Some("my-blog.blogspot.com"));
+
+    // You can filter to only use ICANN section rules.
+    let opts_icann_only = MatchOpts {
+        type_filter: TypeFilter::Icann,
+        ..Default::default()
+    };
+    let sld_icann = list.sld("my-blog.blogspot.com", opts_icann_only);
+    assert_eq!(sld_icann.as_deref(), Some("blogspot.com"));
+
+
+    // --- Example 3: Handling Internationalized Domain Names (IDN) ---
+    // The default normalizer converts to ASCII Punycode.
+    let sld_punycode = list.sld("食狮.中国", MatchOpts::default());
+    assert_eq!(sld_punycode.as_deref(), Some("xn--85x722f.xn--fiqs8s"));
+
+    // You can disable IDNA conversion to keep Unicode characters.
+    let norm_no_idna = Normalizer {
+        idna_ascii: false,
+        ..Default::default()
+    };
+    let opts_no_idna = MatchOpts {
+        normalizer: Some(&norm_no_idna),
+        ..Default::default()
+    };
+    let sld_unicode = list.sld("食狮.中国", opts_no_idna);
+    assert_eq!(sld_unicode.as_deref(), Some("食狮.中国"));
+}
+```
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
