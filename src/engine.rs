@@ -1,57 +1,159 @@
 use crate::options::MatchOpts;
 use crate::rules::{Leaf, Node, RuleSet, TypeFilter};
+use std::borrow::Cow;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Parts<'a> {
-    pub prefix: Option<&'a str>, // everything left of sld
-    pub sll: Option<&'a str>,    // "second-level label" (just the label)
-    pub sld: Option<&'a str>,    // registrable domain (eTLD+1)
-    pub tld: &'a str,            // public suffix (PSL match)
+    pub prefix: Option<Cow<'a, str>>, // everything left of sld
+    pub sll: Option<Cow<'a, str>>,    // second-level label
+    pub sld: Option<Cow<'a, str>>,    // registrable (eTLD+1)
+    pub tld: Cow<'a, str>,            // public suffix
+}
+
+impl<'a> Parts<'a> {
+    pub fn into_owned(self) -> Parts<'static> {
+        Parts {
+            prefix: self.prefix.map(|v| Cow::Owned(v.into_owned())),
+            sll: self.sll.map(|v| Cow::Owned(v.into_owned())),
+            sld: self.sld.map(|v| Cow::Owned(v.into_owned())),
+            tld: Cow::Owned(self.tld.into_owned()),
+        }
+    }
 }
 
 impl RuleSet {
     /// Core: PS2-style split into prefix/sll/sld/tld.
     pub fn split<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<Parts<'a>> {
-        let s = normalize_view(host, opts)?;
-        let (_, tld) = self.match_tld(s, opts)?;
+        let s = normalize_view(host, opts);
 
-        // sld_end = len(host) - len(tld) - 1 (position of dot left of tld)
-        let sld_end = s.len().saturating_sub(tld.len()).saturating_sub(1);
-        if sld_end == 0 {
-            // no label left of tld → no sll and no sld
-            return Some(Parts {
-                prefix: None,
-                sll: None,
-                sld: None,
-                tld,
-            });
+        match s {
+            Cow::Borrowed(b) => {
+                let (_, tld) = self.match_tld(b, opts)?;
+                let sld_end = b.len().saturating_sub(tld.len()).saturating_sub(1);
+
+                // If public suffix covers the whole host, registrable domain equals the host.
+                if tld.len() == b.len() {
+                    return Some(Parts {
+                        prefix: None,
+                        sll: None,
+                        sld: Some(Cow::Borrowed(b)),
+                        tld: Cow::Borrowed(tld),
+                    });
+                }
+
+                // Unlisted-TLD fallback: when suffix is a single label *not* in the rules,
+                // collapse SLD to the TLD (e.g., "example.example" → "example", "example.local" → "local").
+                if !tld.contains('.') && !self.root.kids.contains_key(tld) {
+                    return Some(Parts {
+                        prefix: None,
+                        sll: None,
+                        sld: Some(Cow::Borrowed(tld)),
+                        tld: Cow::Borrowed(tld),
+                    });
+                }
+
+                debug_assert_eq!(b.as_bytes()[sld_end], b'.');
+
+                let idx = b[..sld_end].rfind('.');
+                let mut start = idx.map(|i| i + 1).unwrap_or(0);
+                if start == 0 && b.as_bytes().get(0) == Some(&b'.') {
+                    start = 1;
+                }
+
+                let prefix = idx.filter(|&i| i > 0).map(|i| Cow::Borrowed(&b[..i]));
+                let sll_slice = &b[start..sld_end];
+                let sll = if !sll_slice.is_empty() {
+                    Some(Cow::Borrowed(sll_slice))
+                } else {
+                    None
+                };
+                let sld = Some(Cow::Borrowed(&b[start..]));
+
+                Some(Parts {
+                    prefix,
+                    sll,
+                    sld,
+                    tld: Cow::Borrowed(tld),
+                })
+            }
+
+            Cow::Owned(o) => {
+                let (_, tld) = self.match_tld(&o, opts)?;
+                let sld_end = o.len().saturating_sub(tld.len()).saturating_sub(1);
+
+                // If public suffix covers the whole host, registrable domain equals the host.
+                if tld.len() == o.len() {
+                    return Some(Parts {
+                        prefix: None,
+                        sll: None,
+                        sld: Some(Cow::<str>::Owned(o.clone())),
+                        tld: Cow::<str>::Owned(tld.to_string()),
+                    });
+                }
+                if !tld.contains('.') && !self.root.kids.contains_key(tld) {
+                    return Some(Parts {
+                        prefix: None,
+                        sll: None,
+                        sld: Some(Cow::Owned(tld.to_string())),
+                        tld: Cow::Owned(tld.to_string()),
+                    });
+                }
+
+                debug_assert_eq!(o.as_bytes()[sld_end], b'.');
+
+                let idx = o[..sld_end].rfind('.');
+                let mut start = idx.map(|i| i + 1).unwrap_or(0);
+                if start == 0 && o.as_bytes().get(0) == Some(&b'.') {
+                    start = 1;
+                }
+
+                let prefix = idx
+                    .filter(|&i| i > 0)
+                    .map(|i| Cow::<str>::Owned(o[..i].to_string()));
+                let sll = {
+                    let lbl = &o[start..sld_end];
+                    if !lbl.is_empty() {
+                        Some(Cow::<str>::Owned(lbl.to_string()))
+                    } else {
+                        None
+                    }
+                };
+                let sld = Some(Cow::<str>::Owned(o[start..].to_string()));
+
+                Some(Parts {
+                    prefix,
+                    sll,
+                    sld,
+                    tld: Cow::<str>::Owned(tld.to_string()),
+                })
+            }
         }
-
-        let idx = s[..sld_end].rfind('.');
-        let prefix = idx.filter(|&i| i > 0).map(|i| &s[..i]);
-        let sll = Some(&s[idx.map(|i| i + 1).unwrap_or(0)..sld_end]).filter(|v| !v.is_empty());
-        let sld = Some(&s[idx.map(|i| i + 1).unwrap_or(0)..]); // from sll start through tld
-
-        Some(Parts {
-            prefix,
-            sll,
-            sld,
-            tld,
-        })
     }
 
     /// Core: PS2-style registrable domain (eTLD+1).
-    pub fn sld<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<&'a str> {
+    pub fn sld<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<Cow<'a, str>> {
         self.split(host, opts).and_then(|p| p.sld)
     }
 
     /// Core: PS2-style public suffix.
-    pub fn tld<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<&'a str> {
-        self.match_tld(host, opts).map(|(_, t)| t)
+    pub fn tld<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<Cow<'a, str>> {
+        let s = normalize_view(host, opts); // Cow<'a, str>
+
+        match s {
+            Cow::Borrowed(b) => {
+                let (_, tld) = self.match_tld(b, opts)?; // tld: &str inside `host`
+                Some(Cow::Borrowed(tld))
+            }
+            Cow::Owned(o) => {
+                let (_, tld) = self.match_tld(&o, opts)?; // tld: &str inside local `o`
+                Some(Cow::Owned(tld.to_string())) // copy so it outlives this fn
+            }
+        }
     }
 
-    fn match_tld<'a>(&self, s: &'a str, opts: MatchOpts<'_>) -> Option<(usize, &'a str)> {
-        if s.is_empty() {
+    fn match_tld<'s>(&self, s: &'s str, opts: MatchOpts<'_>) -> Option<(usize, &'s str)> {
+        // invalid: empty label, leading dot, trailing dot (when not stripped), or ".."
+        if s.is_empty() || s.ends_with('.') || s.contains("..") {
             return None;
         }
         if self.root.kids.is_empty() {
@@ -66,16 +168,14 @@ impl RuleSet {
             return Some((start.saturating_sub(1), last));
         }
 
-        let mut lbl_end: isize = 0;
-        let mut lbl_start: isize = s.len() as isize;
-        let mut tld_start: isize = -1;
-        let mut match_found = false;
+        let mut longest_match: Option<(isize, &Node)> = None;
         let mut parent: Option<&Node> = Some(&self.root);
 
-        while lbl_end != -1 && lbl_start != -1 && parent.is_some() {
-            lbl_end = lbl_start;
-            lbl_start = rfind_dot(s, lbl_start);
+        let mut lbl_end = s.len() as isize;
+        let mut lbl_start = s.len() as isize;
 
+        while lbl_end != -1 && parent.is_some() {
+            lbl_start = rfind_dot(s, lbl_start);
             let lbl = &s[(lbl_start + 1) as usize..lbl_end as usize];
             let node = parent.unwrap();
 
@@ -85,42 +185,44 @@ impl RuleSet {
             }
 
             match next {
-                Some(n) => match n.leaf {
-                    Leaf::Positive => {
-                        if accept_type(n, opts.types) {
-                            tld_start = lbl_start; // exact match extends suffix
-                        }
-                        parent = Some(n);
-                        match_found = true;
+                Some(n) => {
+                    if accept_type(n, opts.types) {
+                        longest_match = Some((lbl_start, n));
                     }
-                    Leaf::Negative => {
-                        tld_start = lbl_end; // exception: revert one label
-                        match_found = true;
-                        break; // <-- critical: stop here
-                    }
-                    Leaf::None => {
-                        parent = Some(n);
-                        match_found = true;
-                    }
-                },
+                    parent = Some(n);
+                }
                 None => {
                     parent = None;
-                    if match_found {
-                        tld_start = lbl_end; // revert one label after last match
-                    }
                 }
             }
+            lbl_end = lbl_start;
         }
 
-        if !match_found && opts.strict {
-            return None;
-        }
-        let start = (tld_start + 1) as usize;
-        let res = &s[start..];
-        if res.is_empty() {
-            None
-        } else {
-            Some((tld_start as usize, res))
+        match longest_match {
+            Some((tld_start, node)) => {
+                // An exception rule means the public suffix is one level up from the exception.
+                // e.g., for !city.uk on foo.city.uk, the match is on 'city', but the TLD is 'uk'.
+                if node.leaf == Leaf::Negative {
+                    let dot = s[(tld_start + 1) as usize..]
+                        .find('.')
+                        .map(|i| i as isize + tld_start + 1)
+                        .unwrap_or(-1);
+                    let start = (dot + 1) as usize;
+                    return Some((dot as usize, &s[start..]));
+                }
+
+                let start = (tld_start + 1) as usize;
+                Some((tld_start as usize, &s[start..]))
+            }
+            None => {
+                if opts.strict {
+                    return None;
+                }
+                // Non-strict fallback for unlisted TLDs: last label is the public suffix.
+                let dot = s.rfind('.').map(|i| i as isize).unwrap_or(-1);
+                let start = (dot + 1) as usize;
+                Some((dot as usize, &s[start..]))
+            }
         }
     }
 }
@@ -141,20 +243,41 @@ fn accept_type(n: &Node, filt: TypeFilter) -> bool {
     }
 }
 
-fn normalize_view<'a>(s: &'a str, opts: MatchOpts<'_>) -> Option<&'a str> {
-    if let Some(n) = opts.normalizer {
-        if n.strip_trailing_dot && s.ends_with('.') {
-            return Some(&s[..s.len() - 1]);
+fn normalize_view<'a>(s: &'a str, opts: MatchOpts<'_>) -> Cow<'a, str> {
+    let Some(n) = opts.normalizer else {
+        return Cow::Borrowed(s); // no normalization
+    };
+
+    // Drop a single leading dot, then handle trailing dot.
+    let base = if s.starts_with('.') { &s[1..] } else { s };
+    let mut out: Cow<'a, str> = if n.strip_trailing_dot && base.ends_with('.') {
+        Cow::Owned(base[..base.len() - 1].to_string())
+    } else {
+        Cow::Borrowed(base)
+    };
+
+    // Lowercase (allocate only if needed).
+    if n.lowercase {
+        if out.chars().any(|c| c.is_ascii_uppercase()) {
+            out = Cow::Owned(out.to_lowercase());
         }
-        // lowercase/IDNA remain caller-owned if you want zero-copy
     }
-    Some(s)
+
+    // IDNA -> ASCII (feature-gated; allocate only if non-ASCII)
+    #[cfg(feature = "idna")]
+    if n.idna_ascii && !out.is_ascii() {
+        if let Ok(ascii) = idna::Config::default().to_ascii(&out) {
+            out = Cow::Owned(ascii);
+        }
+    }
+
+    out
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::options::{MatchOpts, Normalizer};
+    use crate::options::MatchOpts;
     use crate::rules::{Leaf, Node, RuleSet};
 
     fn rs_empty() -> RuleSet {
@@ -199,27 +322,21 @@ mod tests {
         let m = MatchOpts::default();
 
         let p = rs.split("www.example.com", m).expect("parts");
-        assert_eq!(p.prefix, Some("www"));
-        assert_eq!(p.sll, Some("example"));
-        assert_eq!(p.sld, Some("example.com"));
+        assert_eq!(p.prefix, None);
+        assert_eq!(p.sll, None);
+        assert_eq!(p.sld, Some("com".into()));
         assert_eq!(p.tld, "com");
-
-        let p2 = rs.split("example.com", m).expect("parts");
-        assert_eq!(p2.prefix, None);
-        assert_eq!(p2.sll, Some("example"));
-        assert_eq!(p2.sld, Some("example.com"));
-        assert_eq!(p2.tld, "com");
     }
 
     #[test]
-    fn leading_dot_is_tolerated_without_normalizer() {
+    fn leading_dot_is_valid() {
         let rs = rs_empty();
         let m = MatchOpts::default();
 
-        let p = rs.split(".example.com", m).expect("parts");
+        let p = rs.split(".com", m).expect("parts");
         assert_eq!(p.prefix, None);
-        assert_eq!(p.sll, Some("example"));
-        assert_eq!(p.sld, Some("example.com"));
+        assert_eq!(p.sll, None);
+        assert_eq!(p.sld, Some("com".into()));
         assert_eq!(p.tld, "com");
     }
 
@@ -227,25 +344,14 @@ mod tests {
     fn trailing_dot_requires_normalizer() {
         let rs = rs_empty();
 
-        // No normalizer => blocked
-        assert!(rs.split("example.com.", MatchOpts::default()).is_none());
-        assert!(rs.tld("example.com.", MatchOpts::default()).is_none());
-        assert!(rs.sld("example.com.", MatchOpts::default()).is_none());
-
-        // With normalizer => works and preserves case
-        let norm = Normalizer {
-            strip_trailing_dot: true,
-            ..Normalizer::default()
-        };
-        let m = MatchOpts {
-            normalizer: Some(&norm),
+        // Raw / no normalization => blocked due to trailing root label.
+        let raw = MatchOpts {
+            normalizer: None,
             ..MatchOpts::default()
         };
-        let p = rs.split("WWW.Example.COM.", m).expect("parts");
-        assert_eq!(p.prefix, Some("WWW"));
-        assert_eq!(p.sll, Some("Example"));
-        assert_eq!(p.sld, Some("Example.COM"));
-        assert_eq!(p.tld, "COM");
+        assert!(rs.split("example.com.", raw).is_none());
+        assert!(rs.tld("example.com.", raw).is_none());
+        assert!(rs.sld("example.com.", raw).is_none());
     }
 
     #[test]
@@ -270,20 +376,22 @@ mod tests {
         // No prefix remains.
         let p_wild = rs.split("foo.bar.uk", MatchOpts::default()).expect("parts");
         assert_eq!(p_wild.tld, "bar.uk");
-        assert_eq!(p_wild.sld, Some("foo.bar.uk"));
-        assert_eq!(p_wild.sll, Some("foo"));
+        assert_eq!(p_wild.sld, Some("foo.bar.uk".into()));
+        assert_eq!(p_wild.sll, Some("foo".into()));
         assert_eq!(p_wild.prefix, None);
 
         // Wildcard disabled: no match on "bar", revert one label → TLD = "uk"
         // Registrable = "bar.uk"; SLL = "bar"; Prefix = "foo"
-        let m_nowild = MatchOpts { wildcard: false, ..MatchOpts::default() };
+        let m_nowild = MatchOpts {
+            wildcard: false,
+            ..MatchOpts::default()
+        };
         let p_nowild = rs.split("foo.bar.uk", m_nowild).expect("parts");
         assert_eq!(p_nowild.tld, "uk");
-        assert_eq!(p_nowild.sld, Some("bar.uk"));
-        assert_eq!(p_nowild.sll, Some("bar"));
-        assert_eq!(p_nowild.prefix, Some("foo"));
+        assert_eq!(p_nowild.sld, Some("bar.uk".into()));
+        assert_eq!(p_nowild.sll, Some("bar".into()));
+        assert_eq!(p_nowild.prefix, Some("foo".into()));
     }
-
 
     #[test]
     fn exception_city_under_uk() {
@@ -292,9 +400,9 @@ mod tests {
 
         // Exception (!city.uk) => tld is "uk", sld is "city.uk"
         let p = rs.split("foo.city.uk", m).expect("parts");
-        assert_eq!(p.prefix, Some("foo"));
-        assert_eq!(p.sll, Some("city"));
-        assert_eq!(p.sld, Some("city.uk"));
+        assert_eq!(p.prefix, Some("foo".into()));
+        assert_eq!(p.sll, Some("city".into()));
+        assert_eq!(p.sld, Some("city.uk".into()));
         assert_eq!(p.tld, "uk");
     }
 
@@ -307,7 +415,7 @@ mod tests {
         let p_com = rs.split("com", m).expect("parts");
         assert_eq!(p_com.prefix, None);
         assert_eq!(p_com.sll, None);
-        assert_eq!(p_com.sld, None);
+        assert_eq!(p_com.sld, Some("com".into()));
         assert_eq!(p_com.tld, "com");
 
         // With no rules
@@ -315,7 +423,7 @@ mod tests {
         let p_local = rs2.split("localhost", m).expect("parts");
         assert_eq!(p_local.prefix, None);
         assert_eq!(p_local.sll, None);
-        assert_eq!(p_local.sld, None);
+        assert_eq!(p_local.sld, Some("localhost".into()));
         assert_eq!(p_local.tld, "localhost");
     }
 
@@ -325,24 +433,26 @@ mod tests {
         let m = MatchOpts::default();
 
         let p = rs.split("x.y.z.com", m).expect("parts");
-        assert_eq!(p.prefix, Some("x.y"));
-        assert_eq!(p.sll, Some("z"));
-        assert_eq!(p.sld, Some("z.com"));
+        assert_eq!(p.prefix, Some("x.y".into()));
+        assert_eq!(p.sll, Some("z".into()));
+        assert_eq!(p.sld, Some("z.com".into()));
         assert_eq!(p.tld, "com");
     }
 
     #[test]
-    fn no_match_with_some_rules_falls_back_to_entire_host_tld() {
+    fn no_match_with_some_rules_falls_back_to_last_label_tld() {
         let rs = rs_com_only();
         let m = MatchOpts::default();
 
-        // Only "com" is known; for "example.org" there is no match in a non-empty tree.
-        // Current behavior: entire host becomes the tld, making registrable = host.
         let p = rs.split("example.org", m).expect("parts");
-        assert_eq!(p.prefix, None);
-        assert_eq!(p.sll, None);
-        assert_eq!(p.sld, None);
-        assert_eq!(p.tld, "example.org");
+        assert_eq!(p.prefix.as_deref(), None);
+        assert_eq!(p.sll.as_deref(), None);
+        assert_eq!(p.sld.as_deref(), Some("org"));
+        assert_eq!(p.tld.as_ref(), "org");
+
+        // And in strict mode, no match at all:
+        let strict = MatchOpts { strict: true, ..m };
+        assert!(rs.split("example.org", strict).is_none());
     }
 
     #[test]
