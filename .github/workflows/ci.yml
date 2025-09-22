@@ -1,55 +1,73 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel any in-progress runs on the same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  check:
-    name: Check on v1.68.2
+  check-msrv:
+    name: Check (MSRV)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install MSRV toolchain (1.68.2)
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.68.2
-          override: true
+          toolchain: '1.68.2'
 
       - name: Run cargo check
-        uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --features std
+        run: cargo check --all-targets --features std
 
   test:
-    name: Test on stable
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Test on stable, beta, and nightly. Allow nightly to fail.
+        rust: [stable, beta, nightly]
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run cargo test
+        run: cargo test --all-features
+
+    continue-on-error: ${{ matrix.rust == 'nightly' }}
+
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
           components: rustfmt, clippy
 
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
 
-      - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-features -- -D warnings
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
-      - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all-features
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
