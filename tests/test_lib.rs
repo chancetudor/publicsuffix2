@@ -1711,3 +1711,26 @@ mod from_url {
         assert!(matches!(result.unwrap_err(), Error::Fetch(_)));
     }
 }
+
+mod from_str {
+    use super::*;
+
+    use publicsuffix2::{Error, List};
+
+    #[test]
+    fn test_parse_ok() {
+        let psl_data = "com\nuk\nco.uk";
+        let result: Result<List, _> = psl_data.parse();
+        assert!(result.is_ok());
+        let list = result.unwrap();
+        assert_eq!(list.tld("example.co.uk", m()).as_deref(), Some("co.uk"));
+    }
+
+    #[test]
+    fn test_parse_err_empty() {
+        let psl_data = "";
+        let result: Result<List, _> = psl_data.parse();
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), Error::EmptyList));
+    }
+}

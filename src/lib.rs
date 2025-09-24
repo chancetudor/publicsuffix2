@@ -12,9 +12,9 @@ pub use errors::{Error, Result, Warning};
 use once_cell::sync::Lazy;
 pub use options::{CommentPolicy, LoadOpts, MatchOpts, Normalizer, SectionPolicy};
 pub use rules::{Type, TypeFilter};
-use std::borrow::Cow;
 #[cfg(feature = "std")]
 use std::path::Path;
+use std::{borrow::Cow, str::FromStr};
 
 static GLOBAL_LIST: Lazy<List> = Lazy::new(|| {
     let text = include_str!("../tests/fixtures/public_suffix_list.dat");
@@ -32,6 +32,26 @@ static GLOBAL_LIST: Lazy<List> = Lazy::new(|| {
 /// Cloning `List` is cheap (the underlying rules are shared).
 pub struct List {
     rules: rules::RuleSet,
+}
+
+impl FromStr for List {
+    type Err = Error;
+    /// Parses a string slice into a `List`.
+    ///
+    /// This is an implementation of the `FromStr` trait, allowing you to use
+    /// the `.parse()` method on strings.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use publicsuffix2::List;
+    ///
+    /// let psl_data = "com\nuk\nco.uk";
+    /// let list: List = psl_data.parse().expect("Failed to parse list");
+    /// ```
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Self::parse(s)
+    }
 }
 
 impl List {
