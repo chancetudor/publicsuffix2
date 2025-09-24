@@ -9,11 +9,17 @@ mod rules;
 
 pub use engine::Parts;
 pub use errors::{Error, Result, Warning};
+use once_cell::sync::Lazy;
 pub use options::{CommentPolicy, LoadOpts, MatchOpts, Normalizer, SectionPolicy};
 pub use rules::{Type, TypeFilter};
 use std::borrow::Cow;
 #[cfg(feature = "std")]
 use std::path::Path;
+
+static GLOBAL_LIST: Lazy<List> = Lazy::new(|| {
+    let text = include_str!("../tests/fixtures/public_suffix_list.dat");
+    List::from_file(text).expect("parsing the embedded public suffix list should not fail")
+});
 
 #[derive(Clone, Debug)]
 /// A compiled Public Suffix List (PSL) and matcher.
@@ -114,5 +120,16 @@ impl List {
     /// - "foo.city.uk" (exception) → TLD="uk", SLD="city.uk", SLL="city", Prefix=Some("foo")
     pub fn split<'a>(&self, host: &'a str, opts: MatchOpts<'_>) -> Option<engine::Parts<'a>> {
         self.rules.split(host, opts)
+    }
+
+    /// Returns a reference to a globally shared `List` instance.
+    ///
+    /// The list is parsed from a built-in copy of the Public Suffix List
+    /// on the first call and cached for subsequent uses.
+    ///
+    /// This is the easiest way to get started if you don't need a custom
+    /// list or special loading options.
+    pub fn global() -> &'static Self {
+        &GLOBAL_LIST
     }
 }
