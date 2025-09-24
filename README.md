@@ -40,37 +40,16 @@ publicsuffix2 = { version = "0.5.1", features = ["fetch"] }
 
 ## Usage
 
-First, you need a `List` instance. It's recommended to create this once and reuse it, as parsing is a one-time cost. You can create it from a string, a file, or a URL.
+### Getting Started
 
-### Creating a `List`
-
-```rust
-use publicsuffix2::{List, Result};
-
-fn main() -> Result<()> {
-    // From a file path (requires the `std` feature, enabled by default)
-    let list_from_file = List::from_file("path/to/your/public_suffix_list.dat")?;
-
-    // From a string
-    const PSL: &str = "com\nuk\nco.uk\n";
-    let list_from_str = List::parse(PSL)?;
-
-    // From a URL (requires the `fetch` feature)
-    #[cfg(feature = "fetch")]
-    let list_from_url = List::from_url("https://publicsuffix.org/list/public_suffix_list.dat")?;
-
-    Ok(())
-}
-```
-
-### Basic Example
+The easiest way to use the library is to create a `List` using `List::default()`. This uses a built-in copy of the Public Suffix List, so no file loading is required.
 
 ```rust
-use publicsuffix2::{List, options::MatchOpts};
+use publicsuffix2::{List, MatchOpts};
 
+// Create a list from the built-in PSL data.
 // It's recommended to do this once and reuse the `List` object.
-let list = List::from_file("path/to/your/public_suffix_list.dat")
-    .expect("Failed to parse PSL");
+let list = List::default();
 
 let domain = "www.example.co.uk";
 
@@ -95,17 +74,38 @@ assert_eq!(sld2.as_deref(), Some("co.uk"));
 The `split` method deconstructs a domain into all its parts.
 
 ```rust
-use publicsuffix2::{List, options::MatchOpts};
+use publicsuffix2::{List, MatchOpts};
 
-let list = List::from_file("path/to/your/public_suffix_list.dat")
-    .expect("Failed to parse PSL");
-
+let list = List::default();
 let parts = list.split("sub.www.example.co.uk", MatchOpts::default()).unwrap();
 
 assert_eq!(parts.tld(), Some("co.uk"));
 assert_eq!(parts.sld(), Some("example.co.uk"));
 assert_eq!(parts.sll(), Some("example"));
 assert_eq!(parts.prefix(), Some("sub.www"));
+```
+
+### Loading a Custom List
+
+If you need to use a custom or updated Public Suffix List, you can create a `List` instance from a string, file, or URL.
+
+```rust
+use publicsuffix2::{List, Result};
+
+fn main() -> Result<()> {
+    // From a string using the FromStr trait
+    const PSL: &str = "com\nuk\nco.uk\n";
+    let list_from_str: List = PSL.parse()?;
+
+    // From a file path (requires the `std` feature)
+    let list_from_file = List::from_file("path/to/your/public_suffix_list.dat")?;
+
+    // From a URL (requires the `fetch` feature)
+    #[cfg(feature = "fetch")]
+    let list_from_url = List::from_url("https://publicsuffix.org/list/public_suffix_list.dat")?;
+
+    Ok(())
+}
 ```
 
 ### Advanced Options
@@ -115,8 +115,7 @@ You can customize matching behavior using `MatchOpts` and `Normalizer`.
 ```rust
 use publicsuffix2::{List, options::{MatchOpts, Normalizer, TypeFilter}};
 
-let list = List::from_file("path/to/your/public_suffix_list.dat")
-    .expect("Failed to parse PSL");
+let list = List::default();
 
 // --- Example 1: Handling trailing dots ---
 let norm_strip_dot = Normalizer {
