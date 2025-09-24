@@ -17,7 +17,7 @@ use std::path::Path;
 use std::{borrow::Cow, str::FromStr};
 
 static GLOBAL_LIST: Lazy<List> = Lazy::new(|| {
-    let text = include_str!("../tests/fixtures/public_suffix_list.dat");
+    let text: &str = "tests/fixtures/public_suffix_list.dat";
     List::from_file(text).expect("parsing the embedded public suffix list should not fail")
 });
 
