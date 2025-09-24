@@ -3,6 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/publicsuffix2.svg)](https://crates.io/crates/publicsuffix2)
 [![docs.rs](https://docs.rs/publicsuffix2/badge.svg)](https://docs.rs/publicsuffix2)
 [![CI](https://github.com/chancetudor/publicsuffix2/actions/workflows/ci.yml/badge.svg)](https://github.com/chancetudor/publicsuffix2/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/github/chancetudor/publicsuffix2/graph/badge.svg?token=9NPNU81LVZ)](https://codecov.io/github/chancetudor/publicsuffix2)
 [![License](https://img.shields.io/crates/l/publicsuffix2.svg)](https://github.com/chancetudor/publicsuffix2/blob/main/LICENSE)
 
 A native Rust library for parsing and using Mozilla's [Public Suffix List](https://publicsuffix.org/).

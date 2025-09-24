@@ -50,6 +50,20 @@ jobs:
       - name: Run cargo test
         run: cargo test --all-features
 
+      # Only run coverage on the stable toolchain
+      - name: Run tarpaulin for coverage
+        if: matrix.rust == 'stable'
+        run: |
+          cargo install cargo-tarpaulin
+          cargo tarpaulin --all-features --workspace --out Xml
+
+      - name: Upload to codecov.io
+        if: matrix.rust == 'stable'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+
     continue-on-error: ${{ matrix.rust == 'nightly' }}
 
   lint:
