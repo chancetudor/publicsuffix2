@@ -28,14 +28,14 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-publicsuffix2 = "0.2"
+publicsuffix2 = "0.5.1"
 ```
 
 To fetch the list from a URL, enable the `fetch` feature:
 
 ```toml
 [dependencies]
-publicsuffix2 = { version = "0.2", features = ["fetch"] }
+publicsuffix2 = { version = "0.5.1", features = ["fetch"] }
 ```
 
 ## Usage
