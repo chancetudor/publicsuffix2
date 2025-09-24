@@ -40,7 +40,7 @@ pub enum Leaf {
 /// Children are keyed by label strings as they appear in the list
 /// (including "*" for wildcard entries). The trie is traversed from the
 /// rightmost label of an input host toward the left.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct Node {
     /// Whether this node represents a rule and of what kind.
     pub leaf: Leaf,
@@ -51,7 +51,7 @@ pub struct Node {
 }
 
 /// Top-level container for the rule trie.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct RuleSet {
     /// Root of the reverse-label trie (has no label itself).
     pub(crate) root: Node,

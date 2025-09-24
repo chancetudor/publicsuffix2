@@ -72,3 +72,22 @@ fn result_alias_compiles_and_is_ok() {
     let out = use_result(r);
     assert!(out.is_ok());
 }
+
+#[cfg(feature = "fetch")]
+#[test]
+fn fetch_variant_display_has_stable_prefix() {
+    // Define a simple error type that implements std::error::Error
+    #[derive(Debug)]
+    struct TestFetchError(&'static str);
+    impl std::fmt::Display for TestFetchError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+    impl std::error::Error for TestFetchError {}
+
+    let fetch_err = Box::new(TestFetchError("network timeout"));
+    let e = Error::Fetch(fetch_err);
+    let s = format!("{}", e);
+    assert!(s.starts_with("Fetch("), "unexpected Display: {s}");
+}

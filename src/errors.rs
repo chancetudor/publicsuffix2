@@ -26,6 +26,9 @@ pub enum Error {
     /// An error occurred during IDNA processing.
     #[cfg(feature = "idna")]
     IdnaError(alloc::string::String),
+    /// An error occurred when making an HTTP request
+    #[cfg(feature = "fetch")]
+    Fetch(Box<dyn StdError + Send + Sync + 'static>),
     /// A label in a domain name is longer than the 63-character limit.
     LabelTooLong {
         /// The label that is too long.

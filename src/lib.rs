@@ -2,6 +2,8 @@ pub mod errors;
 pub mod options;
 
 mod engine;
+#[cfg(feature = "fetch")]
+mod http;
 mod loader;
 mod rules;
 
@@ -10,8 +12,10 @@ pub use errors::{Error, Result, Warning};
 pub use options::{CommentPolicy, LoadOpts, MatchOpts, Normalizer, SectionPolicy};
 pub use rules::{Type, TypeFilter};
 use std::borrow::Cow;
+#[cfg(feature = "std")]
+use std::path::Path;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 /// A compiled Public Suffix List (PSL) and matcher.
 ///
 /// This type owns the parsed rule tree and provides PS2-compatible queries:
@@ -38,6 +42,40 @@ impl List {
     /// sections and comment styles), not match-time behavior.
     pub fn parse_with(text: &str, opts: LoadOpts) -> Result<Self> {
         loader::load(text, opts).map(|rules| Self { rules })
+    }
+
+    /// Parse a PSL from a file path using `LoadOpts::default()`.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        Self::from_file_with(path, LoadOpts::default())
+    }
+
+    /// Parse a PSL from a file path using explicit `LoadOpts`.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    pub fn from_file_with<P: AsRef<Path>>(path: P, opts: LoadOpts) -> Result<Self> {
+        let text = std::fs::read_to_string(path).map_err(Error::Io)?;
+        Self::parse_with(&text, opts)
+    }
+
+    /// Parse a PSL from a URL using `LoadOpts::default()`.
+    ///
+    /// This method is only available when the `fetch` feature is enabled.
+    #[cfg(feature = "fetch")]
+    pub fn from_url(url: &str) -> Result<Self> {
+        Self::from_url_with(url, LoadOpts::default())
+    }
+
+    /// Parse a PSL from a URL using explicit `LoadOpts`.
+    ///
+    /// This method is only available when the `fetch` feature is enabled.
+    #[cfg(feature = "fetch")]
+    pub fn from_url_with(url: &str, opts: LoadOpts) -> Result<Self> {
+        let text = http::get(url)?;
+        Self::parse_with(&text, opts)
     }
 
     /// Registrable domain (eTLD+1) under PS2 semantics.
