@@ -34,6 +34,27 @@ pub struct List {
     rules: rules::RuleSet,
 }
 
+impl Default for List {
+    /// Creates a new `List` instance from the built-in global list.
+    ///
+    /// This is a convenient way to get a `List` ready for use without
+    /// needing to parse a list source manually. It is equivalent to
+    /// calling `List::global().clone()`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use publicsuffix2::{List, MatchOpts};
+    ///
+    /// let list = List::default();
+    /// let tld = list.tld("www.example.com", MatchOpts::default());
+    /// assert_eq!(tld.as_deref(), Some("com"));
+    /// ```
+    fn default() -> Self {
+        GLOBAL_LIST.clone()
+    }
+}
+
 impl FromStr for List {
     type Err = Error;
     /// Parses a string slice into a `List`.

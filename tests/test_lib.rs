@@ -1734,3 +1734,21 @@ mod from_str {
         assert!(matches!(result.unwrap_err(), Error::EmptyList));
     }
 }
+
+mod default {
+    use super::*;
+    use publicsuffix2::List;
+
+    #[test]
+    fn test_default_list() {
+        // List::default() should give a working list based on the embedded PSL.
+        let list = List::default();
+        // Check a few common TLDs to ensure it's parsed correctly.
+        assert_eq!(list.tld("example.com", m()).as_deref(), Some("com"));
+        assert_eq!(list.tld("example.co.uk", m()).as_deref(), Some("co.uk"));
+        assert_eq!(
+            list.sld("example.co.uk", m()).as_deref(),
+            Some("example.co.uk")
+        );
+    }
+}
